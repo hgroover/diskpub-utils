@@ -5,6 +5,7 @@
 #-------------------------------------------------
 
 QT       += core gui
+QT       += serialport
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -13,8 +14,10 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp\
-        mainwindow.cpp
+        mainwindow.cpp \
+    robothandler.cpp
 
-HEADERS  += mainwindow.h
+HEADERS  += mainwindow.h \
+    robothandler.h
 
 FORMS    += mainwindow.ui

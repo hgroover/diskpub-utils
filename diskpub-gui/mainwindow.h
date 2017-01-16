@@ -2,8 +2,10 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QDateTime>
 
 #include "robothandler.h"
+#include "diskburnsequence.h"
 
 namespace Ui {
 class MainWindow;
@@ -19,6 +21,8 @@ public:
 
 protected:
     void Shutdown();
+    void LoadSettings();
+    void SaveSettings();
 
 signals:
     void ShowReceived( QString s );
@@ -26,6 +30,11 @@ signals:
 protected:
     RobotHandler * m_conveyor;
     RobotHandler * m_g4;
+    DiskBurnSequence * m_burn;
+
+    QDateTime m_startPhase2;
+    QDateTime m_startPhase3;
+    qint64 m_isoSize;
 
 public slots:
     void Log( QString s );
@@ -34,6 +43,24 @@ private slots:
     void on_btnQuit_clicked();
 
     void on_btnAdvance_clicked();
+
+    void on_btnEject_clicked();
+
+    void on_btnLoad_clicked();
+
+    void on_btnTest1_clicked();
+
+    void on_btnTest2_clicked();
+
+    void on_btnTest3_clicked();
+
+    void on_btnISOBrowse_clicked();
+
+    void on_btnR_clicked();
+
+    void on_btnG_clicked();
+
+    void on_lstHistory_doubleClicked(const QModelIndex &index);
 
 private:
     Ui::MainWindow *ui;

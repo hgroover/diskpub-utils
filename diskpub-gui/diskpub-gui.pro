@@ -15,9 +15,11 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    robothandler.cpp
+    robothandler.cpp \
+    diskburnsequence.cpp
 
 HEADERS  += mainwindow.h \
-    robothandler.h
+    robothandler.h \
+    diskburnsequence.h
 
 FORMS    += mainwindow.ui

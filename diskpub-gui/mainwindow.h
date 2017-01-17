@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QDateTime>
+#include <QListWidgetItem>
 
 #include "robothandler.h"
 #include "diskburnsequence.h"
@@ -26,6 +27,9 @@ protected:
 
 signals:
     void ShowReceived( QString s );
+    void StartQueue();
+    void PauseQueue();
+    void AbortQueue();
 
 protected:
     RobotHandler * m_conveyor;
@@ -38,6 +42,8 @@ protected:
 
 public slots:
     void Log( QString s );
+    void onQueueCompleted();
+    void onQueueFailed( int reason );
 
 private slots:
     void on_btnQuit_clicked();
@@ -61,6 +67,16 @@ private slots:
     void on_btnG_clicked();
 
     void on_lstHistory_doubleClicked(const QModelIndex &index);
+
+    void on_lstQueue_itemClicked(QListWidgetItem *item);
+
+    void on_btnAddToQueue_clicked();
+
+    void on_btnStartQueue_clicked();
+
+    void on_btnPauseQueue_clicked();
+
+    void on_btnStopQueue_clicked();
 
 private:
     Ui::MainWindow *ui;

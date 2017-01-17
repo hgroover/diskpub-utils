@@ -54,9 +54,12 @@ COM5: F (`000ms) S
 
  ***/
 
+#include "burnqueueentry.h"
+
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QList>
 
 class DiskBurnSequence : public QObject
 {
@@ -73,11 +76,18 @@ protected:
     int m_sequenceIndex;
     QStringList m_sequence;
 
+    QList<BurnQueueEntry*> m_queue;
+    int m_queueIndex;
+    bool m_queueActive;
+
 signals:
     void ShowMsg( QString s );
     void ConveyorCmd( QString s );
     void G4Cmd( QString s );
     QString G4Ack( int timeout );
+    void QueueCompleted();
+    void QueueFailed( int reason );
+    void SequenceCompleted();
 
 public slots:
     void SetDisk(QString s) {m_disk = s;}
@@ -87,9 +97,18 @@ public slots:
     bool MoveConveyorFor( int msDirection );
     void StopConveyor();
     void Step();
+    void StepQueue();
+    void CompleteQueueStep();
 
     void ResetSequence();
+    void RewindSequence();
     void AddSequence( QString cmd );
+
+    void ResetQueue();
+    void AddQueueEntry( BurnQueueEntry *q );
+    void StartQueue();
+    void PauseQueue();
+    void StopQueue();
 };
 
 #endif // DISKBURNSEQUENCE_H

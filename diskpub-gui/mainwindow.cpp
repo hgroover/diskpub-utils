@@ -1,6 +1,8 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
+#include "burnqueueentry.h"
+
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QSettings>
@@ -23,6 +25,11 @@ MainWindow::MainWindow(QWidget *parent) :
     connect( m_burn, SIGNAL(ConveyorCmd(QString)), m_conveyor, SLOT(SendCmd(QString)) );
     connect( m_burn, SIGNAL(G4Cmd(QString)), m_g4, SLOT(SendCmd(QString)) );
     connect( m_burn, SIGNAL(G4Ack(int)), m_g4, SLOT(Read(int)) );
+    connect( this, SIGNAL(AbortQueue()), m_burn, SLOT(StopQueue()) );
+    connect( this, SIGNAL(PauseQueue()), m_burn, SLOT(PauseQueue()) );
+    connect( this, SIGNAL(StartQueue()), m_burn, SLOT(StartQueue()) );
+    connect( m_burn, SIGNAL(QueueCompleted()), this, SLOT(onQueueCompleted()) );
+    connect( m_burn, SIGNAL(QueueFailed(int)), this, SLOT(onQueueFailed(int)) );
     m_g4->GetResponses();
     m_g4->SetAck(true);
     m_conveyor->GetResponses();
@@ -162,11 +169,18 @@ void MainWindow::LoadSettings()
     {
         ui->lstHistory->addItem(aHistory[n]);
     }
+    QStringList aQueue(s.value("Queue").toStringList());
+    for (n =  0; n < aQueue.length(); n++)
+    {
+        ui->lstQueue->addItem(aQueue[n]);
+    }
+    restoreGeometry(s.value("Geometry").toByteArray());
 }
 
 void MainWindow::SaveSettings()
 {
     QSettings s("GrooverSoft", "DiskPub");
+    s.setValue("Geometry", saveGeometry());
     s.setValue("ISO", ui->txtISO->text());
     QStringList aHistory;
     int n;
@@ -175,5 +189,81 @@ void MainWindow::SaveSettings()
         aHistory << ui->lstHistory->item(n)->text();
     }
     s.setValue("History", aHistory);
+    QStringList aQueue;
+    for (n = 0; n < ui->lstQueue->count(); n++)
+    {
+        aQueue << ui->lstQueue->item(n)->text();
+    }
+    s.setValue("Queue", aQueue);
 }
 
+
+void MainWindow::on_lstQueue_itemClicked(QListWidgetItem *item)
+{
+    // Enable delete
+    ui->btnDeleteFromQueue->setEnabled(true);
+}
+
+void MainWindow::on_btnAddToQueue_clicked()
+{
+    // Add current iso
+    if (!ui->txtISO->text().isEmpty())
+    {
+        ui->lstQueue->addItem(ui->txtISO->text());
+        return;
+    }
+    if (ui->lstHistory->currentRow() >= 0 && ui->lstHistory->count() > 0)
+    {
+        ui->lstQueue->addItem(ui->lstHistory->item(ui->lstHistory->currentRow())->text());
+        return;
+    }
+}
+
+void MainWindow::on_btnStartQueue_clicked()
+{
+    if (ui->lstQueue->count()==0)
+    {
+        Log("No entries in queue");
+        return;
+    }
+    ui->btnStartQueue->setEnabled(false);
+    ui->btnPauseQueue->setEnabled(true);
+    ui->btnStopQueue->setEnabled(true);
+    m_burn->ResetQueue();
+    int row;
+    for (row = 0; row < ui->lstQueue->count(); row++)
+    {
+        m_burn->AddQueueEntry( new BurnQueueEntry( ui->lstQueue->item(row)->text(), row, 1 ) );
+    }
+    Log(QString().sprintf("Starting queue with %d entries", ui->lstQueue->count()));
+    emit StartQueue();
+}
+
+void MainWindow::on_btnPauseQueue_clicked()
+{
+    // Pause execution
+    emit PauseQueue();
+}
+
+void MainWindow::on_btnStopQueue_clicked()
+{
+    emit AbortQueue();
+    ui->btnStartQueue->setEnabled(true);
+    ui->btnPauseQueue->setEnabled(false);
+    ui->btnStopQueue->setEnabled(false);
+}
+
+void MainWindow::onQueueCompleted()
+{
+    ui->btnStartQueue->setEnabled(true);
+    ui->btnPauseQueue->setEnabled(false);
+    ui->btnStopQueue->setEnabled(false);
+}
+
+void MainWindow::onQueueFailed( int reason )
+{
+    Log(QString().sprintf("Queue failure reason %d", reason));
+    ui->btnStartQueue->setEnabled(true);
+    ui->btnPauseQueue->setEnabled(false);
+    ui->btnStopQueue->setEnabled(false);
+}

@@ -78,6 +78,18 @@ private slots:
 
     void on_btnStopQueue_clicked();
 
+    void on_btnDeleteFromQueue_clicked();
+
+    void on_btnReject_clicked();
+
+    void on_btnMoreCopies_clicked();
+
+    void on_btnLessCopies_clicked();
+
+    void on_lstQueue_currentRowChanged(int currentRow);
+
+    void on_pushButton_clicked();
+
 private:
     Ui::MainWindow *ui;
 };

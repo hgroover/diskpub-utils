@@ -11,6 +11,8 @@ DiskBurnSequence::DiskBurnSequence(QObject *parent) : QObject(parent)
     DISKBURNER = "isoburn.exe"; // c:\windows\system32
     m_queueActive = false;
     m_queueIndex = 0;
+    m_burnerPid = 0;
+    m_burnerProcessInfo = NULL;
 }
 
 bool DiskBurnSequence::Eject()
@@ -69,6 +71,7 @@ void DiskBurnSequence::StopConveyor()
 void DiskBurnSequence::Step()
 {
     if (m_sequenceIndex < 0 || m_sequenceIndex >= m_sequence.length()) return;
+    // FIXME handle queue pause / resume / cancel (outside of burn iso)
     // Split into destination (e, l, g, c, b), post-command timeout, and command
     QStringList e;
     e << m_sequence.at(m_sequenceIndex).split(':');
@@ -121,6 +124,11 @@ void DiskBurnSequence::Step()
             emit ShowMsg("Error: unknown burn command " + cmd);
         }
     }
+    else if (dest == "w")
+    {
+        // Simple wait with message
+        emit ShowMsg(QString().sprintf("%s (%.1fs)", cmd.toLocal8Bit().constData(), postCmdTimeout / 1000.0));
+    }
     else
     {
         emit ShowMsg( "Unknown destination " + dest);
@@ -159,7 +167,18 @@ bool DiskBurnSequence::BurnISO(QString iso)
     cmdArgs << m_disk;
     cmdArgs << iso.replace('/', "\\");
     emit ShowMsg(iso + " " + cmdArgs[0] + " " + cmdArgs[1] + " " + cmdArgs[2]);
-    QProcess::startDetached(DISKBURNER, cmdArgs);
+    m_burnerPid = 0;
+    if (m_burnerProcessInfo)
+    {
+        ::CloseHandle(m_burnerProcessInfo);
+        m_burnerProcessInfo = NULL;
+    }
+    QProcess::startDetached(DISKBURNER, cmdArgs, QString(), &m_burnerPid);
+    if (m_burnerPid)
+    {
+        m_burnerProcessInfo = ::OpenProcess( PROCESS_QUERY_INFORMATION, FALSE, m_burnerPid );
+        emit ShowMsg(QString().sprintf("Burner pid = %llx, hApp = %llx\n", m_burnerPid, (unsigned long long)m_burnerProcessInfo));
+    }
     //pBurn.execute(DISKBURNER, cmdArgs);
     return true;
 }
@@ -206,6 +225,12 @@ void DiskBurnSequence::StopQueue()
 void DiskBurnSequence::StepQueue()
 {
     if (!m_queueActive) return;
+    if (m_queue[m_queueIndex]->IsoSizeMB() < 0.1)
+    {
+        emit ShowMsg(QString().sprintf("Invalid iso size %.1fmb", m_queue[m_queueIndex]->IsoSizeMB()));
+        StopQueue();
+        return;
+    }
     // Set up entries
     emit ShowMsg(QString().sprintf("Starting queue entry %d, iso %s (%.1fMB)", m_queueIndex + 1, m_queue[m_queueIndex]->Iso().toLocal8Bit().constData(),
                  m_queue[m_queueIndex]->IsoSizeMB()) );
@@ -217,16 +242,25 @@ void DiskBurnSequence::StepQueue()
     AddSequence("g:2000:G");
     AddSequence("g:2000:D");
     AddSequence("g:2000:R");
-    AddSequence("l:14000:"); // Allow drive to spin up
-    unsigned long ms = (unsigned long)(m_queue[m_queueIndex]->IsoSizeMB() * 1000.0 / 9.5);
-    if (m_queue[m_queueIndex]->IsoSizeMB() > 4400.0)
+    unsigned long ms = 12000;
+    bool isDL = (m_queue[m_queueIndex]->IsoSizeMB() > 4400.0);
+    if (isDL)
     {
-        // For DL, use 6mb/s as assumed rate (FIXME this should be calibrated for each drive)
-        ms = ms * 95 / 60;
+        // Dual layer needs more time to spin up
+        ms += 6000;
+    }
+    AddSequence("l:2000:");
+    AddSequence(QString().sprintf("w:%lu:Waiting for drive to spin up", ms));
+    ms = (unsigned long)(m_queue[m_queueIndex]->IsoSizeMB() * 1000.0 / 9.5);
+    if (isDL)
+    {
+        // For DL, use 4.5mb/s as assumed rate (FIXME this should be calibrated for each drive)
+        ms = ms * 95 / 45;
     }
     // Add an extra 4s
     ms += 4000;
     AddSequence(QString().sprintf("b:%lu:iso", ms));
+    AddSequence("w:6000:Burn complete, allowing time for eject");
     AddSequence("g:1500:G");
     AddSequence("l:3000:");
     AddSequence("g:1500:R");
@@ -257,4 +291,24 @@ void DiskBurnSequence::CompleteQueueStep()
     }
     emit ShowMsg(QString().sprintf("Queue entry %d completed", m_queueIndex));
     QTimer::singleShot(2000, this, SLOT(StepQueue()));
+}
+
+bool DiskBurnSequence::ShowBurnerProcessInfo()
+{
+    if (m_burnerPid == 0LL || NULL == m_burnerProcessInfo)
+    {
+        emit ShowMsg("No burner running or no handle");
+        return false;
+    }
+    quint64 cycles;
+    if (::QueryProcessCycleTime(m_burnerProcessInfo, &cycles))
+    {
+        emit ShowMsg(QString().sprintf("Cycle time: %llu", cycles));
+    }
+    else
+    {
+        emit ShowMsg("Query cycle time failed");
+        return false;
+    }
+    return true;
 }

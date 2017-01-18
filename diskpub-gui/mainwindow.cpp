@@ -33,6 +33,7 @@ MainWindow::MainWindow(QWidget *parent) :
     m_g4->GetResponses();
     m_g4->SetAck(true);
     m_conveyor->GetResponses();
+    Log("diskpub-gui 0.11");
 }
 
 MainWindow::~MainWindow()
@@ -233,7 +234,10 @@ void MainWindow::on_btnStartQueue_clicked()
     int row;
     for (row = 0; row < ui->lstQueue->count(); row++)
     {
-        m_burn->AddQueueEntry( new BurnQueueEntry( ui->lstQueue->item(row)->text(), row, 1 ) );
+        QStringList a(ui->lstQueue->item(row)->text().split('|'));
+        int copies = 1;
+        if (a.size()>1) copies = a[1].toInt();
+        m_burn->AddQueueEntry( new BurnQueueEntry( a[0], row, copies ) );
     }
     Log(QString().sprintf("Starting queue with %d entries", ui->lstQueue->count()));
     emit StartQueue();
@@ -266,4 +270,110 @@ void MainWindow::onQueueFailed( int reason )
     ui->btnStartQueue->setEnabled(true);
     ui->btnPauseQueue->setEnabled(false);
     ui->btnStopQueue->setEnabled(false);
+}
+
+void MainWindow::on_btnDeleteFromQueue_clicked()
+{
+    int row = ui->lstQueue->currentRow();
+    if (row < 0)
+    {
+        Log("Invalid row, cannot delete");
+        ui->btnDeleteFromQueue->setEnabled(false);
+    }
+    QListWidgetItem *i = ui->lstQueue->takeItem(row);
+    if (i) delete i;
+    if (row < ui->lstQueue->count())
+    {
+        ui->lstQueue->setCurrentRow(row);
+    }
+    else if (ui->lstQueue->count()>0)
+    {
+        ui->lstQueue->setCurrentRow(0);
+    }
+    else
+    {
+        ui->btnDeleteFromQueue->setEnabled(false);
+    }
+    Log(QString().sprintf("Queue item %d deleted", row));
+}
+
+void MainWindow::on_btnReject_clicked()
+{
+    m_burn->ResetSequence();
+    m_burn->AddSequence("g:1500:G");
+    m_burn->AddSequence("l:3000:");
+    m_burn->AddSequence("g:1500:R");
+    m_burn->AddSequence("c:800:B");
+    m_burn->AddSequence("c:500:S");
+    m_burn->Step();
+    Log("Disk sent out back to reject pile");
+}
+
+void MainWindow::on_btnMoreCopies_clicked()
+{
+    int row = ui->lstQueue->currentRow();
+    if (row < 0)
+    {
+        Log("Invalid current row");
+        return;
+    }
+    QListWidgetItem *item = ui->lstQueue->item(row);
+    QString s(item->text());
+    QStringList a(s.split('|'));
+    if (a.length()<2)
+    {
+        a << "2";
+    }
+    else
+    {
+        a[1] = QString().sprintf("%d", a[1].toInt() + 1);
+    }
+    item->setText(a[0] + "|" + a[1]);
+}
+
+void MainWindow::on_btnLessCopies_clicked()
+{
+    int row = ui->lstQueue->currentRow();
+    if (row < 0)
+    {
+        Log("Invalid current row");
+        return;
+    }
+    QListWidgetItem *item = ui->lstQueue->item(row);
+    QString s(item->text());
+    QStringList a(s.split('|'));
+    if (a.length()<2)
+    {
+        a << "0";
+    }
+    else
+    {
+        int v = a[1].toInt();
+        if (v > 0)
+        {
+            a[1] = QString().sprintf("%d", v - 1);
+        }
+    }
+    item->setText(a[0] + "|" + a[1]);
+}
+
+void MainWindow::on_lstQueue_currentRowChanged(int currentRow)
+{
+    if (currentRow < 0)
+    {
+        ui->btnDeleteFromQueue->setEnabled(false);
+        ui->btnMoreCopies->setEnabled(false);
+        ui->btnLessCopies->setEnabled(false);
+    }
+    else
+    {
+        ui->btnDeleteFromQueue->setEnabled(true);
+        ui->btnMoreCopies->setEnabled(true);
+        ui->btnLessCopies->setEnabled(true);
+    }
+}
+
+void MainWindow::on_pushButton_clicked()
+{
+    m_burn->ShowBurnerProcessInfo();
 }

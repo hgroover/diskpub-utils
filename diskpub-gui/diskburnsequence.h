@@ -61,6 +61,10 @@ COM5: F (`000ms) S
 #include <QStringList>
 #include <QList>
 
+#undef _WIN32_WINNT
+#define _WIN32_WINNT    0x600
+#include <windows.h>
+
 class DiskBurnSequence : public QObject
 {
     Q_OBJECT
@@ -79,6 +83,9 @@ protected:
     QList<BurnQueueEntry*> m_queue;
     int m_queueIndex;
     bool m_queueActive;
+
+    qint64 m_burnerPid;
+    HANDLE m_burnerProcessInfo;
 
 signals:
     void ShowMsg( QString s );
@@ -109,6 +116,8 @@ public slots:
     void StartQueue();
     void PauseQueue();
     void StopQueue();
+
+    bool ShowBurnerProcessInfo();
 };
 
 #endif // DISKBURNSEQUENCE_H

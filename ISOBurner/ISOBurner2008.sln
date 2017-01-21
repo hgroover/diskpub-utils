@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ISOBurner2008", "ISOBuilder\ISOBurner2008.csproj", "{ACCA67CB-4E1F-418D-88B5-37AD38E2598A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpticalImage2008", "FileImage\OpticalImage2008.csproj", "{82B454D3-687D-4E0A-A191-EE087497BAA6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{ACCA67CB-4E1F-418D-88B5-37AD38E2598A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ACCA67CB-4E1F-418D-88B5-37AD38E2598A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ACCA67CB-4E1F-418D-88B5-37AD38E2598A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ACCA67CB-4E1F-418D-88B5-37AD38E2598A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{82B454D3-687D-4E0A-A191-EE087497BAA6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{82B454D3-687D-4E0A-A191-EE087497BAA6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{82B454D3-687D-4E0A-A191-EE087497BAA6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{82B454D3-687D-4E0A-A191-EE087497BAA6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

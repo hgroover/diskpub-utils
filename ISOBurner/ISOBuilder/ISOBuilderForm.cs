@@ -3,6 +3,8 @@
  * Written by Decebal Mihailescu [http://www.codeproject.com/script/articles/list_articles.asp?userid=634640]
  * (CodeProject URL changed, now at https://www.codeproject.com/Articles/23653/How-to-Create-Optical-File-Images-using-IMAPIv )
  * Automation for command-line arguments added by Henry Groover (hgroover on github)
+ * Usage example:
+ * isoburner.exe --automate --statusfile=mystatusfile1.txt --burner=d: --speed=6000 --isofile=mydiskimage.iso
  */
 using System;
 using System.Collections;
@@ -43,6 +45,7 @@ namespace ISOBuilder
         System.Windows.Forms.Timer _automationTimer;
         static ISOBuilderForm _singleton;
         int _automationPass;
+        string _version = "0.1.1";
         public ISOBuilderForm()
         {
             _repository = new ImageRepository();
@@ -186,7 +189,7 @@ namespace ISOBuilder
                             return;
                         }
                         _cbxSpeed.SelectedItem = valSel;
-                        WriteStatus("msg Selected drive speed " + valSel.Key.WriteSpeed.ToString("D"));
+                        WriteStatus("msg Selected drive speed " + valSel.Key.WriteSpeed.ToString("D") + " min " + valMin.Key.WriteSpeed.ToString("D") + " max " + valMax.Key.WriteSpeed.ToString("D"));
                         _lblUpdate.Text = "Selected speed " + valSel.Key.WriteSpeed.ToString("D");
                         break;
                     // Get media type after delay
@@ -295,7 +298,7 @@ namespace ISOBuilder
                 About.InitSysMenu(this);
                 if (_automate)
                 {
-                    WriteStatus("msg Started automation iso " + _isoFile);
+                    WriteStatus("msg Started automation v" + _version + " iso " + _isoFile);
                     _lblFileImage.Text = _isoFile;
                     _tabBuild.SelectedTab = _tabPageBuild;
                     _tabFormat.SelectedTab = _tabPageBurn;
@@ -1616,6 +1619,7 @@ namespace ISOBuilder
                     {
                         WriteStatus("error Burn failed: " + e.Error.Message);
                         _automationPass = 15;
+                        EjectMedia();
                     }
                 }
                 else

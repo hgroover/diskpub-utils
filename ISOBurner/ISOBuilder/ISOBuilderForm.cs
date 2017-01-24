@@ -37,6 +37,7 @@ namespace ISOBuilder
         string _bootableImageFile;
         string _statusFile; // If specified via --statusfile=
         bool _automate; // If specified via --automate
+        bool _optionsSpecified; // If any of --isofile, --burner and/or --speed specified (regardless of _automate)
         int _automateCompletionAction; // If specified via --completionaction= (default 0)
         string _isoFile; // If specified via --isofile=
         string _burnerDrive; // Specified via --burner=
@@ -45,7 +46,7 @@ namespace ISOBuilder
         System.Windows.Forms.Timer _automationTimer;
         static ISOBuilderForm _singleton;
         int _automationPass;
-        string _version = "0.1.1";
+        public string _version = "0.1.2";
         public ISOBuilderForm()
         {
             _repository = new ImageRepository();
@@ -54,6 +55,7 @@ namespace ISOBuilder
             _statusFile = "isoburner-status.txt";
             _burnerSpeed = 0; // Max
             _automate = false;
+            _optionsSpecified = false;
             _automationTimer = new System.Windows.Forms.Timer();
             _singleton = this;
             _automationPass = 0;
@@ -74,14 +76,17 @@ namespace ISOBuilder
         public void SetISOFile(string isoFile)
         {
             _isoFile = isoFile;
+            _optionsSpecified = true;
         }
         public void SetBurnerDrive(string drive)
         {
             _burnerDrive = drive;
+            _optionsSpecified = true;
         }
         public void SetBurnerSpeed(int speed)
         {
             _burnerSpeed = speed;
+            _optionsSpecified = true;
         }
         public void SetMediaType(string mediaType)
         {
@@ -108,7 +113,7 @@ namespace ISOBuilder
         {
             if (_automationPass >= 20)
             {
-                Close();
+                if (_automate) Close();
             }
             else if (_automationPass < 10)
             {
@@ -199,7 +204,7 @@ namespace ISOBuilder
                         break;
                     // Start burn after delay
                     case 4:
-                        _btnBurn.PerformClick();
+                        if (_automate) _btnBurn.PerformClick();
                         break;
                     // Wait for burn completion
                     case 5:
@@ -211,6 +216,7 @@ namespace ISOBuilder
         }
         void WriteStatus(string text)
         {
+            if (!_automate) return;
             using (System.IO.StreamWriter file =
                 new System.IO.StreamWriter(_statusFile, true))
             {
@@ -296,7 +302,7 @@ namespace ISOBuilder
                 _txtVolName.Text = now.Year + "_" + now.Month + "_" + now.Day;
 
                 About.InitSysMenu(this);
-                if (_automate)
+                if (_automate || _optionsSpecified)
                 {
                     WriteStatus("msg Started automation v" + _version + " iso " + _isoFile);
                     _lblFileImage.Text = _isoFile;

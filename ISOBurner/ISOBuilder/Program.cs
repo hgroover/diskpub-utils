@@ -68,16 +68,28 @@ namespace ISOBuilder
             }
             if (showHelp > 0)
             {
+                string msg;
+                string title;
+                msg = "ISOBurner v" + dlg._version + "\n\n";
                 if (showHelp > 1)
-                    System.Console.Out.WriteLine("One or more invalid options specified");
-                System.Console.Out.WriteLine("Syntax:");
-                System.Console.Out.WriteLine("--automate  Start burning specified iso");
-                System.Console.Out.WriteLine("--statusfile=<filename> Write status messages to specified file");
-                System.Console.Out.WriteLine("--completionaction=<code> (default=0) 0 = take no action; 1 = exit");
-                System.Console.Out.WriteLine("--iso=<filename>  ISO file to burn");
-                System.Console.Out.WriteLine("--burner=<driveletter> Drive letter of burner to use");
-                System.Console.Out.WriteLine("--speed=<rate>  Maximum data rate to use (default=0 for max supported)");
-                System.Console.Out.WriteLine("--media=<type>  Type can be dvd-r, dvd+r, dvd+dl, cd-r");
+                {
+                    title = "Invalid option specified";
+                    msg += "One or more invalid options specified\n";
+                }
+                else
+                {
+                    title = "ISOBurner command line options";
+                }
+                msg += "General options\n";
+                msg += "  --iso=<filename>\t\tISO file to burn\n";
+                msg += "  --burner=<driveletter>\tDrive letter of burner to use\n";
+                msg += "  --speed=<rate>\t\tMaximum data rate to use\n\t\t\t(default=0 for max supported)\n";
+                msg += "Automation (options marked * work only if --automate specified):\n";
+                msg += "  --automate\t\tStart burning specified iso\n";
+                msg += "* --statusfile=<filename>\tWrite status messages to specified file\n";
+                // msg += "--media=<type>      Type can be dvd-r, dvd+r, dvd+dl, cd-r\n";
+                // msg += "--completionaction=<code> (default=0) 0 = take no action; 1 = exit\n";
+                MessageBox.Show(msg, title);
             }
             else
             {

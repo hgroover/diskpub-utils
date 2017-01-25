@@ -81,7 +81,7 @@ namespace ISOBuilder
                     title = "ISOBurner command line options";
                 }
                 msg += "General options\n";
-                msg += "  --iso=<filename>\t\tISO file to burn\n";
+                msg += "  --isofile=<filename>\tISO file to burn\n";
                 msg += "  --burner=<driveletter>\tDrive letter of burner to use\n";
                 msg += "  --speed=<rate>\t\tMaximum data rate to use\n\t\t\t(default=0 for max supported)\n";
                 msg += "Automation (options marked * work only if --automate specified):\n";

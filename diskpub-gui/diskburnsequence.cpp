@@ -4,15 +4,27 @@
 #include <QTimer>
 #include <QString>
 #include <QStringList>
+#include <QFile>
+#include <QFileInfo>
 
 DiskBurnSequence::DiskBurnSequence(QObject *parent) : QObject(parent)
 {
     NIRCMD = "c:\\Users\\hgroover\\Documents\\dvd-iso\\nircmd.exe";
-    DISKBURNER = "isoburn.exe"; // c:\windows\system32
+    DISKBURNER = "../../ISOBurner/bin/ISOBurner.exe"; // "isoburn.exe"; // c:\windows\system32
     m_queueActive = false;
     m_queueIndex = 0;
     m_burnerPid = 0;
     m_burnerProcessInfo = NULL;
+    m_statusFile = NULL;
+    m_statusFileSize = 0LL;
+    m_statusFileComplete = false;
+    m_statusFileSuccess = false;
+    m_statusFileWait = 0;
+}
+
+DiskBurnSequence::~DiskBurnSequence()
+{
+    ResetStatus();
 }
 
 bool DiskBurnSequence::Eject()
@@ -72,7 +84,7 @@ void DiskBurnSequence::Step()
 {
     if (m_sequenceIndex < 0 || m_sequenceIndex >= m_sequence.length()) return;
     // FIXME handle queue pause / resume / cancel (outside of burn iso)
-    // Split into destination (e, l, g, c, b), post-command timeout, and command
+    // Split into destination (e, l, g, c, b, w, if, else, fi), post-command timeout, and command
     QStringList e;
     e << m_sequence.at(m_sequenceIndex).split(':');
     if (e.length() < 3)
@@ -84,7 +96,11 @@ void DiskBurnSequence::Step()
     QString dest(e[0]);
     int postCmdTimeout = e[1].toInt();
     QString cmd(e[2]);
-    emit ShowMsg(QString().sprintf("Seq[%d] to%d ", m_sequenceIndex, postCmdTimeout) + m_sequence.at(m_sequenceIndex) );
+    // Suppress if waiting for status file
+    if (dest != "if" || m_statusFileWait == 0)
+    {
+        emit ShowMsg(QString().sprintf("Seq[%d] to%d ", m_sequenceIndex, postCmdTimeout) + m_sequence.at(m_sequenceIndex) );
+    }
     if (dest == "e")
     {
         Eject();
@@ -129,6 +145,42 @@ void DiskBurnSequence::Step()
         // Simple wait with message
         emit ShowMsg(QString().sprintf("%s (%.1fs)", cmd.toLocal8Bit().constData(), postCmdTimeout / 1000.0));
     }
+    else if (dest == "if")
+    {
+        // Wait for burn result
+        if (!CheckStatus())
+        {
+            // Wait another second
+            m_statusFileWait++;
+            QTimer::singleShot(1000, this, SLOT(Step()));
+            return;
+        }
+        if (m_statusFileSuccess)
+        {
+            emit ShowMsg( QString().sprintf("Disk burn success after %d seconds", m_statusFileWait) );
+            // Continue with next statement after if
+        }
+        else
+        {
+            emit ShowMsg( QString().sprintf("Disk burn FAILED after %d seconds", m_statusFileWait) );
+            // Advance to else
+            m_sequenceIndex = FindNextSequence("else");
+        }
+    }
+    else if (dest == "else")
+    {
+        // Failure path for burn result
+        if (m_statusFileSuccess)
+        {
+            // Skip to end of else block
+            m_sequenceIndex = FindNextSequence("fi");
+        }
+    }
+    else if (dest == "fi")
+    {
+        // End of conditional path
+        emit ShowMsg("Reached end of if/else/fi");
+    }
     else
     {
         emit ShowMsg( "Unknown destination " + dest);
@@ -154,19 +206,146 @@ void DiskBurnSequence::ResetSequence()
     m_sequence.clear();
 }
 
+// Find next sequence dest field. Return a safe assignment to
+// m_sequenceIndex, which is m_sequenceIndex on error
+int DiskBurnSequence::FindNextSequence(QString dest)
+{
+    int n;
+    for (n = m_sequenceIndex + 1; n < m_sequence.length(); n++)
+    {
+        QStringList e;
+        e << m_sequence.at(n).split(':');
+        if (e.length() < 3)
+        {
+            emit ShowMsg("Error: bad cmd " + m_sequence.at(n));
+            return m_sequenceIndex;
+        }
+        if (e[0] == dest)
+        {
+            // Found our target
+            return n;
+        }
+    }
+    emit ShowMsg( "Failed to find " + dest );
+    return m_sequenceIndex;
+}
+
 void DiskBurnSequence::AddSequence( QString cmd )
 {
     m_sequence.append(cmd);
 }
 
+void DiskBurnSequence::ResetStatus()
+{
+    if (m_statusFile)
+    {
+        m_statusFile->deleteLater();
+        m_statusFile = NULL;
+    }
+    m_statusFileComplete = false;
+    m_statusFileSuccess = false;
+    m_statusFileSize = 0LL;
+    m_statusFileWait = 0;
+}
+
+// Read status file. Echo messages (msg) and look for error or success
+bool DiskBurnSequence::CheckStatus()
+{
+    if (m_statusFileComplete)
+    {
+        return true;
+    }
+    QFileInfo fi(m_statusFileName);
+    if (fi.size() == m_statusFileSize)
+    {
+        return false; // no change
+    }
+    QFile f(m_statusFileName);
+    if (!f.open(QIODevice::ReadOnly))
+    {
+        emit ShowMsg("Failed to open " + m_statusFileName);
+        m_statusFileSuccess = false;
+        m_statusFileComplete = true;
+        return true;
+    }
+    if (!f.seek(m_statusFileSize))
+    {
+        emit ShowMsg("Failed to seek on " + m_statusFileName);
+        m_statusFileSuccess = false;
+        m_statusFileComplete = true;
+        f.close();
+        return true;
+    }
+    QString s(f.readAll());
+    m_statusFileSize += s.length();
+    f.close();
+    if (s.length() == 0)
+    {
+        return false; // no change
+    }
+    QStringList a(s.split('\n', QString::SkipEmptyParts));
+    if (a.length() == 0)
+    {
+        return false; // no change - blank lines perhaps
+    }
+    int n;
+    for (n = 0; n < a.length(); n++)
+    {
+        if (a[n].startsWith("msg "))
+        {
+            emit ShowMsg(a[n]);
+        }
+        else if (a[n].startsWith("error "))
+        {
+            emit ShowMsg(a[n]);
+            m_statusFileSuccess = false;
+            m_statusFileComplete = true;
+        }
+        else if (a[n].startsWith("success "))
+        {
+            if (m_statusFileComplete)
+            {
+                emit ShowMsg("Ignoring conflicting " + a[n]);
+            }
+            else
+            {
+                emit ShowMsg(a[n]);
+                m_statusFileSuccess = true;
+                m_statusFileComplete = true;
+            }
+        }
+        else
+        {
+            emit ShowMsg("Unknown status: " + a[n]);
+        }
+    }
+    return m_statusFileComplete;
+}
+
 bool DiskBurnSequence::BurnISO(QString iso)
 {
-    //QProcess pBurn;
+    // ISOBurner.exe --iso=file.iso --burner=d: --automate --statusfile=tempfile.log
     QStringList cmdArgs;
+    ResetStatus();
+    /** for windows burniso
     cmdArgs << "/Q";
     cmdArgs << m_disk;
     cmdArgs << iso.replace('/', "\\");
     emit ShowMsg(iso + " " + cmdArgs[0] + " " + cmdArgs[1] + " " + cmdArgs[2]);
+    ***/
+    cmdArgs << ("--isofile=" + iso.replace('/',"\\"));
+    cmdArgs << ("--burner=" + m_disk);
+    cmdArgs << "--automate";
+    m_statusFile = new QTemporaryFile();
+    m_statusFile->open();
+    m_statusFile->close();
+    m_statusFileSize = 0LL;
+    m_statusFileName = m_statusFile->fileName();
+    // Close and delete file, otherwise it cannot be written to by ISOBurner
+    delete m_statusFile;
+    m_statusFile = NULL;
+    cmdArgs << ("--statusfile=" + m_statusFileName);
+    emit ShowMsg(DISKBURNER + " " + cmdArgs[0] + " "  + cmdArgs[1] + " " + cmdArgs[2] + " " + cmdArgs[3]);
     m_burnerPid = 0;
     if (m_burnerProcessInfo)
     {
@@ -177,7 +356,11 @@ bool DiskBurnSequence::BurnISO(QString iso)
     if (m_burnerPid)
     {
         m_burnerProcessInfo = ::OpenProcess( PROCESS_QUERY_INFORMATION, FALSE, m_burnerPid );
-        emit ShowMsg(QString().sprintf("Burner pid = %llx, hApp = %llx\n", m_burnerPid, (unsigned long long)m_burnerProcessInfo));
+        emit ShowMsg(QString().sprintf("Burner pid = %llx, hApp = %llx, status = %s\n",
+                                       m_burnerPid,
+                                       (unsigned long long)m_burnerProcessInfo,
+                                       m_statusFileName.toLocal8Bit().constData()
+                            ));
     }
     //pBurn.execute(DISKBURNER, cmdArgs);
     return true;
@@ -251,6 +434,7 @@ void DiskBurnSequence::StepQueue()
     }
     AddSequence("l:2000:");
     AddSequence(QString().sprintf("w:%lu:Waiting for drive to spin up", ms));
+    /******
     ms = (unsigned long)(m_queue[m_queueIndex]->IsoSizeMB() * 1000.0 / 9.5);
     if (isDL)
     {
@@ -259,13 +443,24 @@ void DiskBurnSequence::StepQueue()
     }
     // Add an extra 4s
     ms += 4000;
+    ****/
+    ms = 5000;
     AddSequence(QString().sprintf("b:%lu:iso", ms));
+    AddSequence("if:1000:statusfile");
     AddSequence("w:6000:Burn complete, allowing time for eject");
     AddSequence("g:1500:G");
     AddSequence("l:3000:");
     AddSequence("g:1500:R");
     AddSequence("c:1500:F");
     AddSequence("c:500:S");
+    AddSequence("else:0:");
+    AddSequence("w:6000:Burn failed, allowing time for eject");
+    AddSequence("g:1500:G");
+    AddSequence("l:3000:");
+    AddSequence("g:1500:R");
+    AddSequence("c:1000:B");
+    AddSequence("c:500:S");
+    AddSequence("fi:0:");
     QTimer::singleShot(1000, this, SLOT(Step()));
 }
 

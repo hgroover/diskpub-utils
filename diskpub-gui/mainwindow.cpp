@@ -33,7 +33,7 @@ MainWindow::MainWindow(QWidget *parent) :
     m_g4->GetResponses();
     m_g4->SetAck(true);
     m_conveyor->GetResponses();
-    Log("diskpub-gui 0.11");
+    Log("diskpub-gui " PROGRAM_VERSION);
 }
 
 MainWindow::~MainWindow()

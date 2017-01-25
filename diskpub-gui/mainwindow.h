@@ -8,6 +8,8 @@
 #include "robothandler.h"
 #include "diskburnsequence.h"
 
+#define PROGRAM_VERSION "0.12"
+
 namespace Ui {
 class MainWindow;
 }

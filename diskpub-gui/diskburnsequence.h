@@ -35,8 +35,12 @@ c> nircmd cdrom open e:
 G (wait 2s) D  (wait 2s) R (wait 2s)
 c> nircmd cdrom close e:
 (wait 3s)
+Old method:
 c> isoburn /Q E: Vastu-DVD.iso
 (wait for completion of command)
+New method:
+c> burniso.exe --iso=Vastu-DVD.iso --burner=e: --statusfile=foo.log --automate
+(look for line starting with fail or success in foo.log)
 
 Failed:
 COM3: G
@@ -60,6 +64,7 @@ COM5: F (`000ms) S
 #include <QString>
 #include <QStringList>
 #include <QList>
+#include <QTemporaryFile>
 
 #undef _WIN32_WINNT
 #define _WIN32_WINNT    0x600
@@ -70,12 +75,19 @@ class DiskBurnSequence : public QObject
     Q_OBJECT
 public:
     explicit DiskBurnSequence(QObject *parent = 0);
+    ~DiskBurnSequence();
 
 protected:
     QString NIRCMD;
     QString DISKBURNER;
 
     QString m_disk;
+    QTemporaryFile *m_statusFile;
+    qint64 m_statusFileSize;
+    QString m_statusFileName;
+    bool m_statusFileComplete; // true if we've gotten success or error
+    bool m_statusFileSuccess;
+    int m_statusFileWait; // Wait in seconds for status file
 
     int m_sequenceIndex;
     QStringList m_sequence;
@@ -116,6 +128,10 @@ public slots:
     void StartQueue();
     void PauseQueue();
     void StopQueue();
+
+    void ResetStatus();
+    bool CheckStatus();
+    int FindNextSequence(QString dest);
 
     bool ShowBurnerProcessInfo();
 };

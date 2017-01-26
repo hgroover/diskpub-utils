@@ -6,21 +6,130 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>507</width>
-    <height>454</height>
+    <width>508</width>
+    <height>498</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Disk Publisher GUI</string>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,1,0,0,0,0">
+   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,1,0,0,0,0">
     <item>
      <widget class="QPlainTextEdit" name="txtLog">
       <property name="readOnly">
        <bool>true</bool>
       </property>
      </widget>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_5">
+      <item>
+       <widget class="QCheckBox" name="chkVerbose">
+        <property name="toolTip">
+         <string>Check to enable verbose logging</string>
+        </property>
+        <property name="text">
+         <string>Verbose logging</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblQueueCurrent">
+        <property name="text">
+         <string>Queue not running</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblQueueSucceeded">
+        <property name="palette">
+         <palette>
+          <active>
+           <colorrole role="WindowText">
+            <brush brushstyle="SolidPattern">
+             <color alpha="255">
+              <red>0</red>
+              <green>170</green>
+              <blue>0</blue>
+             </color>
+            </brush>
+           </colorrole>
+          </active>
+          <inactive>
+           <colorrole role="WindowText">
+            <brush brushstyle="SolidPattern">
+             <color alpha="255">
+              <red>0</red>
+              <green>170</green>
+              <blue>0</blue>
+             </color>
+            </brush>
+           </colorrole>
+          </inactive>
+          <disabled>
+           <colorrole role="WindowText">
+            <brush brushstyle="SolidPattern">
+             <color alpha="255">
+              <red>120</red>
+              <green>120</green>
+              <blue>120</blue>
+             </color>
+            </brush>
+           </colorrole>
+          </disabled>
+         </palette>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblQueueFailed">
+        <property name="palette">
+         <palette>
+          <active>
+           <colorrole role="WindowText">
+            <brush brushstyle="SolidPattern">
+             <color alpha="255">
+              <red>170</red>
+              <green>0</green>
+              <blue>0</blue>
+             </color>
+            </brush>
+           </colorrole>
+          </active>
+          <inactive>
+           <colorrole role="WindowText">
+            <brush brushstyle="SolidPattern">
+             <color alpha="255">
+              <red>170</red>
+              <green>0</green>
+              <blue>0</blue>
+             </color>
+            </brush>
+           </colorrole>
+          </inactive>
+          <disabled>
+           <colorrole role="WindowText">
+            <brush brushstyle="SolidPattern">
+             <color alpha="255">
+              <red>120</red>
+              <green>120</green>
+              <blue>120</blue>
+             </color>
+            </brush>
+           </colorrole>
+          </disabled>
+         </palette>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
     <item>
      <widget class="QTabWidget" name="tabs">
@@ -473,7 +582,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>507</width>
+     <width>508</width>
      <height>21</height>
     </rect>
    </property>

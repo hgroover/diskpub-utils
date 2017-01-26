@@ -21,15 +21,21 @@ MainWindow::MainWindow(QWidget *parent) :
     m_burn->SetDisk("e:");
     connect( m_conveyor, SIGNAL(ShowMsg(QString)), this, SLOT(Log(QString)) );
     connect( m_g4, SIGNAL(ShowMsg(QString)), this, SLOT(Log(QString)) );
-    connect( m_burn, SIGNAL(ShowMsg(QString)), this, SLOT(Log(QString)) );
+    connect( m_burn, SIGNAL(ShowMsg(int,QString)), this, SLOT(LogIfVerbose(int,QString)) );
     connect( m_burn, SIGNAL(ConveyorCmd(QString)), m_conveyor, SLOT(SendCmd(QString)) );
     connect( m_burn, SIGNAL(G4Cmd(QString)), m_g4, SLOT(SendCmd(QString)) );
     connect( m_burn, SIGNAL(G4Ack(int)), m_g4, SLOT(Read(int)) );
+    connect( m_burn, SIGNAL(QueueCurrent(QString)), this, SLOT(onQueueCurrent(QString)) );
+    connect( m_burn, SIGNAL(QueueFailureCount(QString)), this, SLOT(onQueueFailureCount(QString)) );
+    connect( m_burn, SIGNAL(QueueSuccessCount(QString)), this, SLOT(onQueueSuccessCount(QString)) );
     connect( this, SIGNAL(AbortQueue()), m_burn, SLOT(StopQueue()) );
     connect( this, SIGNAL(PauseQueue()), m_burn, SLOT(PauseQueue()) );
     connect( this, SIGNAL(StartQueue()), m_burn, SLOT(StartQueue()) );
     connect( m_burn, SIGNAL(QueueCompleted()), this, SLOT(onQueueCompleted()) );
     connect( m_burn, SIGNAL(QueueFailed(int)), this, SLOT(onQueueFailed(int)) );
+    //connect( this, SIGNAL(VerboseChanged(bool)), m_burn, SLOT(SetVerbose(bool)) );
+    m_logFile.setFileName("diskpub-gui.log");
+    m_logFile.open(QIODevice::Append);
     m_g4->GetResponses();
     m_g4->SetAck(true);
     m_conveyor->GetResponses();
@@ -69,8 +75,23 @@ void MainWindow::on_btnAdvance_clicked()
 
 void MainWindow::Log(QString s)
 {
+    LogIfVerbose(1, s);
+}
+
+// Log visibly if chkVerbose is checked or level < 1
+void MainWindow::LogIfVerbose(int level, QString s)
+{
     if (s.isEmpty()) return;
+    LogToFile(s);
+    if (level > 0 && !ui->chkVerbose->isChecked()) return;
     ui->txtLog->appendPlainText(s);
+}
+
+void MainWindow::LogToFile( QString s )
+{
+    if (!m_logFile.isOpen()) return;
+    m_logFile.write(QDateTime::currentDateTime().toString(LOGFILE_DTFORMAT).append(s).append("\r\n").toLocal8Bit() );
+    m_logFile.flush();
 }
 
 void MainWindow::on_btnEject_clicked()
@@ -103,7 +124,7 @@ void MainWindow::on_btnTest2_clicked()
     QFileInfo fi(ui->txtISO->text());
     m_isoSize = fi.size();
     m_burn->BurnISO(ui->txtISO->text());
-    Log(QString().sprintf("Burning ISO (%.1fmb) %s", m_isoSize / (1024.0 * 1024), fi.fileName().toLocal8Bit().constData()));
+    LogIfVerbose( 0, QString().sprintf("Burning ISO (%.1fmb) %s", m_isoSize / (1024.0 * 1024), fi.fileName().toLocal8Bit().constData()));
 }
 
 void MainWindow::on_btnTest3_clicked()
@@ -112,7 +133,7 @@ void MainWindow::on_btnTest3_clicked()
     qint64 elapsed = m_startPhase3.toMSecsSinceEpoch() - m_startPhase2.toMSecsSinceEpoch();
     double elapsedSeconds = elapsed / 1000.0;
     double secondsPerMb = (m_isoSize / (1024.0 * 1024)) / elapsedSeconds;
-    Log( QString().sprintf("Elapsed: %.1fs for %.1fmb; %.1f MB/s", elapsedSeconds, m_isoSize / (1024.0 * 1024), secondsPerMb));
+    LogIfVerbose( 0, QString().sprintf("Elapsed: %.1fs for %.1fmb; %.1f MB/s", elapsedSeconds, m_isoSize / (1024.0 * 1024), secondsPerMb));
     m_burn->ResetSequence();
     m_burn->AddSequence("g:1500:G");
     m_burn->AddSequence("l:3000:");
@@ -164,6 +185,7 @@ void MainWindow::LoadSettings()
 {
     QSettings s("GrooverSoft", "DiskPub");
     ui->txtISO->setText(s.value("ISO").toString());
+    ui->chkVerbose->setChecked(s.value("Verbose").toBool());
     QStringList aHistory(s.value("History").toStringList());
     int n;
     for (n = 0; n < aHistory.length(); n++)
@@ -183,6 +205,7 @@ void MainWindow::SaveSettings()
     QSettings s("GrooverSoft", "DiskPub");
     s.setValue("Geometry", saveGeometry());
     s.setValue("ISO", ui->txtISO->text());
+    s.setValue("Verbose", ui->chkVerbose->isChecked());
     QStringList aHistory;
     int n;
     for (n = 0; n < ui->lstHistory->count(); n++)
@@ -196,6 +219,21 @@ void MainWindow::SaveSettings()
         aQueue << ui->lstQueue->item(n)->text();
     }
     s.setValue("Queue", aQueue);
+}
+
+void MainWindow::onQueueCurrent(QString msg)
+{
+    ui->lblQueueCurrent->setText(msg);
+}
+
+void MainWindow::onQueueSuccessCount(QString msg)
+{
+    ui->lblQueueSucceeded->setText(msg);
+}
+
+void MainWindow::onQueueFailureCount(QString msg)
+{
+    ui->lblQueueFailed->setText(msg);
 }
 
 
@@ -224,7 +262,7 @@ void MainWindow::on_btnStartQueue_clicked()
 {
     if (ui->lstQueue->count()==0)
     {
-        Log("No entries in queue");
+        LogIfVerbose(0, "No entries in queue");
         return;
     }
     ui->btnStartQueue->setEnabled(false);
@@ -239,7 +277,7 @@ void MainWindow::on_btnStartQueue_clicked()
         if (a.size()>1) copies = a[1].toInt();
         m_burn->AddQueueEntry( new BurnQueueEntry( a[0], row, copies ) );
     }
-    Log(QString().sprintf("Starting queue with %d entries", ui->lstQueue->count()));
+    LogIfVerbose(0, QString().sprintf("Starting queue with %d entries", ui->lstQueue->count()));
     emit StartQueue();
 }
 
@@ -266,7 +304,7 @@ void MainWindow::onQueueCompleted()
 
 void MainWindow::onQueueFailed( int reason )
 {
-    Log(QString().sprintf("Queue failure reason %d", reason));
+    LogIfVerbose(0, QString().sprintf("Queue failure reason %d", reason));
     ui->btnStartQueue->setEnabled(true);
     ui->btnPauseQueue->setEnabled(false);
     ui->btnStopQueue->setEnabled(false);
@@ -277,7 +315,7 @@ void MainWindow::on_btnDeleteFromQueue_clicked()
     int row = ui->lstQueue->currentRow();
     if (row < 0)
     {
-        Log("Invalid row, cannot delete");
+        LogIfVerbose(-1, "Invalid row, cannot delete");
         ui->btnDeleteFromQueue->setEnabled(false);
     }
     QListWidgetItem *i = ui->lstQueue->takeItem(row);
@@ -294,7 +332,7 @@ void MainWindow::on_btnDeleteFromQueue_clicked()
     {
         ui->btnDeleteFromQueue->setEnabled(false);
     }
-    Log(QString().sprintf("Queue item %d deleted", row));
+    LogIfVerbose(0, QString().sprintf("Queue item %d deleted", row));
 }
 
 void MainWindow::on_btnReject_clicked()
@@ -306,7 +344,7 @@ void MainWindow::on_btnReject_clicked()
     m_burn->AddSequence("c:800:B");
     m_burn->AddSequence("c:500:S");
     m_burn->Step();
-    Log("Disk sent out back to reject pile");
+    LogIfVerbose(0, "Disk sent out back to reject pile");
 }
 
 void MainWindow::on_btnMoreCopies_clicked()
@@ -314,7 +352,7 @@ void MainWindow::on_btnMoreCopies_clicked()
     int row = ui->lstQueue->currentRow();
     if (row < 0)
     {
-        Log("Invalid current row");
+        LogIfVerbose(-1, "Invalid current row");
         return;
     }
     QListWidgetItem *item = ui->lstQueue->item(row);
@@ -336,7 +374,7 @@ void MainWindow::on_btnLessCopies_clicked()
     int row = ui->lstQueue->currentRow();
     if (row < 0)
     {
-        Log("Invalid current row");
+        LogIfVerbose(-1, "Invalid current row");
         return;
     }
     QListWidgetItem *item = ui->lstQueue->item(row);
@@ -376,4 +414,9 @@ void MainWindow::on_lstQueue_currentRowChanged(int currentRow)
 void MainWindow::on_pushButton_clicked()
 {
     m_burn->ShowBurnerProcessInfo();
+}
+
+void MainWindow::on_chkVerbose_toggled(bool checked)
+{
+    emit VerboseChanged( checked );
 }

@@ -95,12 +95,20 @@ protected:
     QList<BurnQueueEntry*> m_queue;
     int m_queueIndex;
     bool m_queueActive;
+    int m_queueSuccessCount;
+    int m_queueFailureCount;
+    QStringList m_queueSuccessList;
+
+    bool m_verbose;
 
     qint64 m_burnerPid;
     HANDLE m_burnerProcessInfo;
 
 signals:
-    void ShowMsg( QString s );
+    void ShowMsg( int level, QString s );
+    void QueueCurrent( QString msg );
+    void QueueSuccessCount( QString msg );
+    void QueueFailureCount( QString msg );
     void ConveyorCmd( QString s );
     void G4Cmd( QString s );
     QString G4Ack( int timeout );
@@ -134,6 +142,8 @@ public slots:
     int FindNextSequence(QString dest);
 
     bool ShowBurnerProcessInfo();
+
+    void SetVerbose( bool verbose ) {m_verbose = verbose;}
 };
 
 #endif // DISKBURNSEQUENCE_H

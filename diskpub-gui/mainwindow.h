@@ -4,11 +4,13 @@
 #include <QMainWindow>
 #include <QDateTime>
 #include <QListWidgetItem>
+#include <QFile>
 
 #include "robothandler.h"
 #include "diskburnsequence.h"
 
-#define PROGRAM_VERSION "0.12"
+#define PROGRAM_VERSION "0.13"
+#define LOGFILE_DTFORMAT "[ddd yyyy-MM-dd hh:mm:ss.zzz] "
 
 namespace Ui {
 class MainWindow;
@@ -32,6 +34,7 @@ signals:
     void StartQueue();
     void PauseQueue();
     void AbortQueue();
+    void VerboseChanged( bool verbose );
 
 protected:
     RobotHandler * m_conveyor;
@@ -42,10 +45,17 @@ protected:
     QDateTime m_startPhase3;
     qint64 m_isoSize;
 
+    QFile m_logFile;
+
 public slots:
-    void Log( QString s );
+    void Log( QString s ); // Delegate to LogIfVerbose( 1, s )
+    void LogIfVerbose( int level, QString s ); // if level >= 1, only display if verbose checked
+    void LogToFile( QString s );
     void onQueueCompleted();
     void onQueueFailed( int reason );
+    void onQueueCurrent(QString msg);
+    void onQueueSuccessCount(QString msg);
+    void onQueueFailureCount(QString msg);
 
 private slots:
     void on_btnQuit_clicked();
@@ -91,6 +101,8 @@ private slots:
     void on_lstQueue_currentRowChanged(int currentRow);
 
     void on_pushButton_clicked();
+
+    void on_chkVerbose_toggled(bool checked);
 
 private:
     Ui::MainWindow *ui;

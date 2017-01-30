@@ -27,3 +27,7 @@ this and directly connect the motor outputs from the L298 board to the
 two exposed connectors on the motor. Solder and cover with shrink wrap.
 Removing and reinstalling the motor is straightforward.
 
+The USB cable for the Arduino can be connected to the free slot on
+the internal powered USB hub. You'll need to install the Arduino
+drivers to communicate with the Arduino. diskpub-gui assumes the
+Arduino connection will be accessible as COM5.
